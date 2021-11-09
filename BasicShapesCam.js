@@ -45,6 +45,47 @@ var floatsPerVertex = 7;	// # of Float32Array elements used for each vertex
 // (x,y,z,w)position + (r,g,b)color
 // Later, see if you can add:
 // (x,y,z) surface normal + (tx,ty) texture addr.
+var g_vertsMax = 0;                 // number of vertices held in the VBO 
+// (global: replaces local 'n' variable)
+var modelMatrix = new Matrix4();  // Construct 4x4 matrix; contents get sent
+// to the GPU/Shaders as a 'uniform' var.
+var u_ModelMatrix;                  // that uniform's location in the GPU
+
+//------------For Animation---------------------------------------------
+var g_isRun = true;                 // run/stop for animation; used in tick().
+var g_lastMS = Date.now();    			// Timestamp for most-recently-drawn image; 
+// in milliseconds; used by 'animate()' fcn 
+// (now called 'timerAll()' ) to find time
+// elapsed since last on-screen image.
+var g_angle01 = 0;                  // initial rotation angle
+var g_angle01Rate = 45.0;           // rotation speed, in degrees/second 
+
+var g_angle02 = 0;                  // initial rotation angle
+var g_angle02Rate = 40.0;
+
+var g_angle03 = 0;
+var g_angle03Rate = 200;
+
+var g_angle04 = 0;
+var g_angle04Rate = 200;
+
+var g_angle05 = 0;
+var g_angle05Rate = 50;
+
+var w_is_pushed = false;
+var s_is_pushed = false;
+
+var w_last_pushed = true;
+// rotation speed, in degrees/second 
+
+//------------For mouse click-and-drag: -------------------------------
+var g_isDrag = false;		// mouse-drag: true when user holds down mouse button
+var g_xMclik = 0.0;			// last mouse button-down position (in CVV coords)
+var g_yMclik = 0.0;
+var g_xMdragTot = 0.0;	// total (accumulated) mouse-drag amounts (in CVV coords).
+var g_yMdragTot = 0.0;
+var g_digits = 5;			// DIAGNOSTICS: # of digits to print in console.log (
+//    console.log('xVal:', xVal.toFixed(g_digits)); // print 5 digits
 
 function main() {
 	//==============================================================================
@@ -139,13 +180,10 @@ function initVertexBuffer(gl) {
 	// shapes.
 
 	// Make each 3D shape in its own array of vertices:
-	makeCylinder();					// create, fill the cylVerts array
-	makeSphere();						// create, fill the sphVerts array
-	makeTorus();						// create, fill the torVerts array
+	make_old_shapes();				// create, fill the torVerts array
 	makeGroundGrid();				// create, fill the gndVerts array
 	// how many floats total needed to store all shapes?
-	var mySiz = (cylVerts.length + sphVerts.length +
-		torVerts.length + gndVerts.length);
+	var mySiz = ( gndVerts.length + old_shapes_vers.length);
 
 	// How many vertices total?
 	var nn = mySiz / floatsPerVertex;
@@ -153,22 +191,18 @@ function initVertexBuffer(gl) {
 	// Copy all shapes into one big Float32 array:
 	var colorShapes = new Float32Array(mySiz);
 	// Copy them:  remember where to start for each shape:
-	cylStart = 0;							// we stored the cylinder first.
-	for (i = 0, j = 0; j < cylVerts.length; i++, j++) {
-		colorShapes[i] = cylVerts[j];
+	old_ShapesStart = 0;							// we stored the cylinder first.
+	for (i = 0, j = 0; j < old_shapes_vers.length; i++, j++) {
+		colorShapes[i] = old_shapes_vers[j];
 	}
-	sphStart = i;						// next, we'll store the sphere;
-	for (j = 0; j < sphVerts.length; i++, j++) {// don't initialize i -- reuse it!
-		colorShapes[i] = sphVerts[j];
-	}
-	torStart = i;						// next, we'll store the torus;
-	for (j = 0; j < torVerts.length; i++, j++) {
-		colorShapes[i] = torVerts[j];
-	}
-	gndStart = i;						// next we'll store the ground-plane;
+	gndStart = i;							// we stored the cylinder first.
 	for (j = 0; j < gndVerts.length; i++, j++) {
 		colorShapes[i] = gndVerts[j];
 	}
+
+
+	
+
 	// Create a buffer object on the graphics hardware:
 	var shapeBufferHandle = gl.createBuffer();
 	if (!shapeBufferHandle) {
@@ -601,100 +635,924 @@ function makeGroundGrid() {
 	}
 }
 
+//add old shapes
+
+function make_old_shapes(){
+
+	//head variables
+	//face
+	var x1 = 0; var y1 = 0; var z1 = 0;
+	var x2 = 0.3; var y2 = 0.5; var z2 = 0.2;
+
+	var c1 = 1; var c2 = 1; var c3 = 0.7;
+	// cap variables
+
+	//lower cap
+	var x11 = -0.15; var y11 = 0.5; var z11 = -0.15;
+	var x12 = 0.45; var y12 = 0.6; var z12 = 0.35;
+
+	var c11 = 0; var c12 = 0; var c13 = 0;
+
+	//uper cap
+	var x21 = 0; var y21 = 0.6; var z21 = 0;
+	var x22 = 0.3; var y22 = 1; var z22 = 0.2;
+
+	var c21 = 0; var c22 = 0; var c23 = 0;
+
+	//head end
+
+	//arm variables
+	//arm
+
+	var x31 = 0; var y31 = 0; var z31 = 0;
+	var x32 = 0.2; var y32 = 0.5; var z32 = 0.2;
+
+	var c31 = 1; var c32 = 1; var c33 = 0.7;
+
+	//hand
+	var x41 = -0.025; var y41 = -0.3; var z41 = -0.025;
+	var x42 = 0.225; var y42 = 0; var z42 = 0.225;
+
+	var c41 = 0.647059; var c42 = 0.164706; var c43 = 0.164706;
+
+	//body variables
+	//body
+
+	var x51 = 0; var y51 = 0; var z51 = 0;
+	var x52 = 0.4; var y52 = 0.8; var z52 = 0.2;
+
+	var c51 = 0; var c52 = 1; var c53 = 0.7;
+
+	//leg variables
+	//upper part
+
+	var x61 = 0; var y61 = 0; var z61 = 0;
+	var x62 = 0.2; var y62 = 0.7; var z62 = 0.2;
+
+	var c61 = 1; var c62 = 1; var c63 = 0.7;
+
+	//foot
+	var x71 = -0.0; var y71 = -0.2; var z71 = -0.3;
+	var x72 = 0.2; var y72 = 0; var z72 = 0.225;
+
+	var c71 = 0; var c72 = 0; var c73 = 0;
+
+	//cowboy end
+
+	//dog start
+	// head variables
+
+	//face
+	var x81 = 0; var y81 = 0; var z81 = 0;
+	var x82 = 0.3; var y82 = 0.3; var z82 = 0.2;
+
+	var c81 = 1; var c82 = 0.8; var c83 = 0.7;
+
+	//left ear
+	var x91 = 0; var y91 = 0.3; var z91 = 0;
+	var x92 = 0.1; var y92 = 0.4; var z92 = 0.1;
+
+	var c91 = 0.8; var c92 = 0.8; var c93 = 0.7;
+	//right ear
+	var xa1 = 0.2; var ya1 = 0.3; var za1 = 0;
+	var xa2 = 0.3; var ya2 = 0.4; var za2 = 0.1;
+
+	var ca1 = 0.8; var ca2 = 0.8; var ca3 = 0.7;
+	//head end
+	//body start
+
+	var xb1 = 0; var yb1 = 0; var zb1 = 0;
+	var xb2 = 0.4; var yb2 = 0.2; var zb2 = 0.6;
+
+	var cb1 = 0.9; var cb2 = 0.8; var cb3 = 0.7;
+	//body end
+
+	//legs start
+	var xc1 = 0; var yc1 = 0; var zc1 = 0;
+	var xc2 = 0.2; var yc2 = 0.35; var zc2 = 0.2;
+
+	var cc1 = 1; var cc2 = 0.8; var cc3 = 0.7;
+
+	//paw
+	var xd1 = -0.025; var yd1 = -0.2; var zd1 = -0.025;
+	var xd2 = 0.225; var yd2 = 0; var zd2 = 0.225;
+
+	var cd1 = 0.8; var cd2 = 0.8; var cd3 = 0.7;
+
+	//legs end
+	//pig end
+
+	old_shapes_vers =  new Float32Array([
+		// Vertex coordinates(x,y,z,w) and color (R,G,B) for a color tetrahedron:
+		//		Apex on +z axis; equilateral triangle base at z=0
+		/*	Nodes:
+				 0.0,	 0.0, sq2, 1.0,			1.0, 	1.0,	1.0,	// Node 0 (apex, +z axis;  white)
+			 c30, -0.5, 0.0, 1.0, 		0.0,  0.0,  1.0, 	// Node 1 (base: lower rt; red)
+			 0.0,  1.0, 0.0, 1.0,  		1.0,  0.0,  0.0,	// Node 2 (base: +y axis;  grn)
+			-c30, -0.5, 0.0, 1.0, 		0.0,  1.0,  0.0, 	// Node 3 (base:lower lft; blue)
+		
+		*/
+
+
+
+
+
+		// HEAAAD PART START
+
+		//face
+		// Face : back
+		x1, y1, z1, 1.0, c1, c2, c3,
+		x2, y1, z1, 1.0, c1, c2, c3,
+		x1, y2, z1, 1.0, c1, c2, c3,
+
+		x2, y2, z1, 1.00, c1, c2, c3,
+		x2, y1, z1, 1.00, c1, c2, c3,
+		x1, y2, z1, 1.00, c1, c2, c3,
+
+		// Face : front
+		x1, y1, z2, 1.0, c1, c2, c3,
+		x2, y1, z2, 1.0, c1, c2, c3,
+		x1, y2, z2, 1.0, c1, c2, c3,
+
+		x2, y2, z2, 1.00, c1, c2, c3,
+		x2, y1, z2, 1.00, c1, c2, c3,
+		x1, y2, z2, 1.00, c1, c2, c3,
+
+		//right
+
+		x2, y1, z2, 1.0, c1, c2, c3,
+		x2, y1, z1, 1.0, c1, c2, c3,
+		x2, y2, z2, 1.00, c1, c2, c3,
+
+
+		x2, y2, z1, 1.00, c1, c2, c3,
+		x2, y2, z2, 1.00, c1, c2, c3,
+		x2, y1, z1, 1.00, c1, c2, c3,
+
+		//left
+
+
+		x1, y1, z2, 1.0, c1, c2, c3,
+		x1, y1, z1, 1.0, c1, c2, c3,
+		x1, y2, z2, 1.00, c1, c2, c3,
+
+
+		x1, y2, z1, 1.00, c1, c2, c3,
+		x1, y2, z2, 1.00, c1, c2, c3,
+		x1, y1, z1, 1.00, c1, c2, c3,
+
+		//bottom
+		x1, y1, z1, 1.0, c1, c2, c3,
+		x1, y1, z2, 1.0, c1, c2, c3,
+		x2, y1, z1, 1.0, c1, c2, c3,
+
+		x2, y1, z2, 1.0, c1, c2, c3,
+		x2, y1, z1, 1.0, c1, c2, c3,
+		x1, y1, z2, 1.0, c1, c2, c3,
+
+		//top
+
+		x1, y2, z1, 1.0, c1, c2, c3,
+		x1, y2, z2, 1.0, c1, c2, c3,
+		x2, y2, z1, 1.0, c1, c2, c3,
+
+		x2, y2, z2, 1.0, c1, c2, c3,
+		x2, y2, z1, 1.0, c1, c2, c3,
+		x1, y2, z2, 1.0, c1, c2, c3,
+
+		// cap lower part
+
+		//back
+		x11, y11, z11, 1.0, c11, c12, c13,
+		x12, y11, z11, 1.0, c11, c12, c13,
+		x11, y12, z11, 1.0, c11, c12, c13,
+
+		x12, y12, z11, 1.00, c11, c12, c13,
+		x12, y11, z11, 1.00, c11, c12, c13,
+		x11, y12, z11, 1.00, c11, c12, c13,
+
+		// Face : front
+		x11, y11, z12, 1.0, c11, c12, c13,
+		x12, y11, z12, 1.0, c11, c12, c13,
+		x11, y12, z12, 1.0, c11, c12, c13,
+
+		x12, y12, z12, 1.00, c11, c12, c13,
+		x12, y11, z12, 1.00, c11, c12, c13,
+		x11, y12, z12, 1.00, c11, c12, c13,
+
+		//right
+
+		x12, y11, z12, 1.0, c11, c12, c13,
+		x12, y11, z11, 1.0, c11, c12, c13,
+		x12, y12, z12, 1.00, c11, c12, c13,
+
+
+		x12, y12, z11, 1.00, c11, c12, c13,
+		x12, y12, z12, 1.00, c11, c12, c13,
+		x12, y11, z11, 1.00, c11, c12, c13,
+
+		//left
+
+
+		x11, y11, z12, 1.0, c11, c12, c13,
+		x11, y11, z11, 1.0, c11, c12, c13,
+		x11, y12, z12, 1.00, c11, c12, c13,
+
+
+		x11, y12, z11, 1.00, c11, c12, c13,
+		x11, y12, z12, 1.00, c11, c12, c13,
+		x11, y11, z11, 1.00, c11, c12, c13,
+
+		//bottom
+		x11, y11, z11, 1.0, c11, c12, c13,
+		x11, y11, z12, 1.0, c11, c12, c13,
+		x12, y11, z11, 1.0, c11, c12, c13,
+
+		x12, y11, z12, 1.0, c11, c12, c13,
+		x12, y11, z11, 1.0, c11, c12, c13,
+		x11, y11, z12, 1.0, c11, c12, c13,
+
+		//top
+
+		x11, y12, z11, 1.0, c11, c12, c13,
+		x11, y12, z12, 1.0, c11, c12, c13,
+		x12, y12, z11, 1.0, c11, c12, c13,
+
+		x12, y12, z12, 1.0, c11, c12, c13,
+		x12, y12, z11, 1.0, c11, c12, c13,
+		x11, y12, z12, 1.0, c11, c12, c13,
+
+
+
+		//upper part
+
+		//back
+		x21, y21, z21, 1.0, c21, c22, c23,
+		x22, y21, z21, 1.0, c21, c22, c23,
+		x21, y22, z21, 1.0, c21, c22, c23,
+		x22, y22, z21, 1.0, c21, c22, c23,
+		x22, y21, z21, 1.0, c21, c22, c23,
+		x21, y22, z21, 1.0, c21, c22, c23,
+
+		// Face : front
+		x21, y21, z22, 1.0, c21, c22, c23,
+		x22, y21, z22, 1.0, c21, c22, c23,
+		x21, y22, z22, 1.0, c21, c22, c23,
+		x22, y22, z22, 1.0, c21, c22, c23,
+		x22, y21, z22, 1.0, c21, c22, c23,
+		x21, y22, z22, 1.0, c21, c22, c23,
+
+		//right
+
+		x22, y21, z22, 1.0, c21, c22, c23,
+		x22, y21, z21, 1.0, c21, c22, c23,
+		x22, y22, z22, 1.0, c21, c22, c23,
+		x22, y22, z21, 1.0, c21, c22, c23,
+		x22, y22, z22, 1.0, c21, c22, c23,
+		x22, y21, z21, 1.0, c21, c22, c23,
+
+		//left
+
+
+		x21, y21, z22, 1.0, c21, c22, c23,
+		x21, y21, z21, 1.0, c21, c22, c23,
+		x21, y22, z22, 1.0, c21, c22, c23,
+		x21, y22, z21, 1.0, c21, c22, c23,
+		x21, y22, z22, 1.0, c21, c22, c23,
+		x21, y21, z21, 1.0, c21, c22, c23,
+
+		//bottom
+		x21, y21, z21, 1.0, c21, c22, c23,
+		x21, y21, z22, 1.0, c21, c22, c23,
+		x22, y21, z21, 1.0, c21, c22, c23,
+		x22, y21, z22, 1.0, c21, c22, c23,
+		x22, y21, z21, 1.0, c21, c22, c23,
+		x21, y21, z22, 1.0, c21, c22, c23,
+
+		//top
+
+		x21, y22, z21, 1.0, 1, 0, 0,
+		x21, y22, z22, 1.0, 0, 1, 0,
+		x22, y22, z21, 1.0, 0, 0, 1,
+		x22, y22, z22, 1.0, c21, c22, c23,
+		x22, y22, z21, 1.0, c21, c22, c23,
+		x21, y22, z22, 1.0, c21, c22, c23,
+
+		// HEADPART END
+
+		//ARMPART START
+		//arm
+		//arm : back
+		x31, y31, z31, 1.0, c31, c32, c33,
+		x32, y31, z31, 1.0, c31, c32, c33,
+		x31, y32, z31, 1.0, c31, c32, c33,
+		x32, y32, z31, 1.0, c31, c32, c33,
+		x32, y31, z31, 1.0, c31, c32, c33,
+		x31, y32, z31, 1.0, c31, c32, c33,
+
+		//Face : front
+		x31, y31, z32, 1.0, c31, c32, c33,
+		x32, y31, z32, 1.0, c31, c32, c33,
+		x31, y32, z32, 1.0, c31, c32, c33,
+		x32, y32, z32, 1.0, c31, c32, c33,
+		x32, y31, z32, 1.0, c31, c32, c33,
+		x31, y32, z32, 1.0, c31, c32, c33,
+
+		//right
+
+		x32, y31, z32, 1.0, c31, c32, c33,
+		x32, y31, z31, 1.0, c31, c32, c33,
+		x32, y32, z32, 1.0, c31, c32, c33,
+		x32, y32, z31, 1.0, c31, c32, c33,
+		x32, y32, z32, 1.0, c31, c32, c33,
+		x32, y31, z31, 1.0, c31, c32, c33,
+
+		//left
+
+
+		x31, y31, z32, 1.0, c31, c32, c33,
+		x31, y31, z31, 1.0, c31, c32, c33,
+		x31, y32, z32, 1.0, c31, c32, c33,
+		x31, y32, z31, 1.0, c31, c32, c33,
+		x31, y32, z32, 1.0, c31, c32, c33,
+		x31, y31, z31, 1.0, c31, c32, c33,
+
+		//	bottom
+		x31, y31, z31, 1.0, c31, c32, c33,
+		x31, y31, z32, 1.0, c31, c32, c33,
+		x32, y31, z31, 1.0, c31, c32, c33,
+		x32, y31, z32, 1.0, c31, c32, c33,
+		x32, y31, z31, 1.0, c31, c32, c33,
+		x31, y31, z32, 1.0, c31, c32, c33,
+
+		//	top
+
+		x31, y32, z31, 1.0, c31, c32, c33,
+		x31, y32, z32, 1.0, c31, c32, c33,
+		x32, y32, z31, 1.0, c31, c32, c33,
+		x32, y32, z32, 1.0, c31, c32, c33,
+		x32, y32, z31, 1.0, c31, c32, c33,
+		x31, y32, z32, 1.0, c31, c32, c33,
+
+		//Hand part
+		//back
+		x41, y41, z41, 1.0, c41, c42, c43,
+		x42, y41, z41, 1.0, c41, c42, c43,
+		x41, y42, z41, 1.0, c41, c42, c43,
+		x42, y42, z41, 1.0, c41, c42, c43,
+		x42, y41, z41, 1.0, c41, c42, c43,
+		x41, y42, z41, 1.0, c41, c42, c43,
+
+		//Face : front
+		x41, y41, z42, 1.0, c41, c42, c43,
+		x42, y41, z42, 1.0, c41, c42, c43,
+		x41, y42, z42, 1.0, c41, c42, c43,
+		x42, y42, z42, 1.0, c41, c42, c43,
+		x42, y41, z42, 1.0, c41, c42, c43,
+		x41, y42, z42, 1.0, c41, c42, c43,
+
+		//	right
+
+		x42, y41, z42, 1.0, c41, c42, c43,
+		x42, y41, z41, 1.0, c41, c42, c43,
+		x42, y42, z42, 1.0, c41, c42, c43,
+		x42, y42, z41, 1.0, c41, c42, c43,
+		x42, y42, z42, 1.0, c41, c42, c43,
+		x42, y41, z41, 1.0, c41, c42, c43,
+
+		//left
+
+
+		x41, y41, z42, 1.0, c41, c42, c43,
+		x41, y41, z41, 1.0, c41, c42, c43,
+		x41, y42, z42, 1.0, c41, c42, c43,
+		x41, y42, z41, 1.0, c41, c42, c43,
+		x41, y42, z42, 1.0, c41, c42, c43,
+		x41, y41, z41, 1.0, c41, c42, c43,
+
+		//	bottom
+		x41, y41, z41, 1.0, c41, c42, c43,
+		x41, y41, z42, 1.0, c41, c42, c43,
+		x42, y41, z41, 1.0, c41, c42, c43,
+		x42, y41, z42, 1.0, c41, c42, c43,
+		x42, y41, z41, 1.0, c41, c42, c43,
+		x41, y41, z42, 1.0, c41, c42, c43,
+
+		//	top
+
+		x41, y42, z41, 1.0, c41, c42, c43,
+		x41, y42, z42, 1.0, c41, c42, c43,
+		x42, y42, z41, 1.0, c41, c42, c43,
+		x42, y42, z42, 1.0, c41, c42, c43,
+		x42, y42, z41, 1.0, c41, c42, c43,
+		x41, y42, z42, 1.0, c41, c42, c43,
+
+		//body start
+
+		//back
+		x51, y51, z51, 1.0, c51, c52, c53,
+		x52, y51, z51, 1.0, c51, c52, c53,
+		x51, y52, z51, 1.0, c51, c52, c53,
+		x52, y52, z51, 1.0, c51, c52, c53,
+		x52, y51, z51, 1.0, c51, c52, c53,
+		x51, y52, z51, 1.0, c51, c52, c53,
+
+		// Face : front
+		x51, y51, z52, 1.0, c51, c52, c53,
+		x52, y51, z52, 1.0, c51, c52, c53,
+		x51, y52, z52, 1.0, c51, c52, c53,
+		x52, y52, z52, 1.0, c51, c52, c53,
+		x52, y51, z52, 1.0, c51, c52, c53,
+		x51, y52, z52, 1.0, c51, c52, c53,
+
+		//right
+
+		x52, y51, z52, 1.0, c51, c52, c53,
+		x52, y51, z51, 1.0, c51, c52, c53,
+		x52, y52, z52, 1.0, c51, c52, c53,
+		x52, y52, z51, 1.0, c51, c52, c53,
+		x52, y52, z52, 1.0, c51, c52, c53,
+		x52, y51, z51, 1.0, c51, c52, c53,
+
+		//left
+
+
+		x51, y51, z52, 1.0, c51, c52, c53,
+		x51, y51, z51, 1.0, c51, c52, c53,
+		x51, y52, z52, 1.0, c51, c52, c53,
+		x51, y52, z51, 1.0, c51, c52, c53,
+		x51, y52, z52, 1.0, c51, c52, c53,
+		x51, y51, z51, 1.0, c51, c52, c53,
+
+		//bottom
+		x51, y51, z51, 1.0, c51, c52, c53,
+		x51, y51, z52, 1.0, c51, c52, c53,
+		x52, y51, z51, 1.0, c51, c52, c53,
+		x52, y51, z52, 1.0, c51, c52, c53,
+		x52, y51, z51, 1.0, c51, c52, c53,
+		x51, y51, z52, 1.0, c51, c52, c53,
+
+		//top
+
+		x51, y52, z51, 1.0, c51, c52, c53,
+		x51, y52, z52, 1.0, c51, c52, c53,
+		x52, y52, z51, 1.0, c51, c52, c53,
+		x52, y52, z52, 1.0, c51, c52, c53,
+		x52, y52, z51, 1.0, c51, c52, c53,
+		x51, y52, z52, 1.0, c51, c52, c53,
+
+		// body end
+
+		//leg start
+		//leg uper part
+		x61, y61, z61, 1.0, c61, c62, c63,
+		x62, y61, z61, 1.0, c61, c62, c63,
+		x61, y62, z61, 1.0, c61, c62, c63,
+		x62, y62, z61, 1.0, c61, c62, c63,
+		x62, y61, z61, 1.0, c61, c62, c63,
+		x61, y62, z61, 1.0, c61, c62, c63,
+
+		//Face : front
+		x61, y61, z62, 1.0, c61, c62, c63,
+		x62, y61, z62, 1.0, c61, c62, c63,
+		x61, y62, z62, 1.0, c61, c62, c63,
+		x62, y62, z62, 1.0, c61, c62, c63,
+		x62, y61, z62, 1.0, c61, c62, c63,
+		x61, y62, z62, 1.0, c61, c62, c63,
+
+		//right
+
+		x62, y61, z62, 1.0, c61, c62, c63,
+		x62, y61, z61, 1.0, c61, c62, c63,
+		x62, y62, z62, 1.0, c61, c62, c63,
+		x62, y62, z61, 1.0, c61, c62, c63,
+		x62, y62, z62, 1.0, c61, c62, c63,
+		x62, y61, z61, 1.0, c61, c62, c63,
+
+		//left
+
+
+		x61, y61, z62, 1.0, c61, c62, c63,
+		x61, y61, z61, 1.0, c61, c62, c63,
+		x61, y62, z62, 1.0, c61, c62, c63,
+		x61, y62, z61, 1.0, c61, c62, c63,
+		x61, y62, z62, 1.0, c61, c62, c63,
+		x61, y61, z61, 1.0, c61, c62, c63,
+
+		//	bottom
+		x61, y61, z61, 1.0, c61, c62, c63,
+		x61, y61, z62, 1.0, c61, c62, c63,
+		x62, y61, z61, 1.0, c61, c62, c63,
+		x62, y61, z62, 1.0, c61, c62, c63,
+		x62, y61, z61, 1.0, c61, c62, c63,
+		x61, y61, z62, 1.0, c61, c62, c63,
+
+		//	top
+
+		x61, y62, z61, 1.0, c61, c62, c63,
+		x61, y62, z62, 1.0, c61, c62, c63,
+		x62, y62, z61, 1.0, c61, c62, c63,
+		x62, y62, z62, 1.0, c61, c62, c63,
+		x62, y62, z61, 1.0, c61, c62, c63,
+		x61, y62, z62, 1.0, c61, c62, c63,
+
+		//Hand part
+		//back
+		x71, y71, z71, 1.0, c71, c72, c73,
+		x72, y71, z71, 1.0, c71, c72, c73,
+		x71, y72, z71, 1.0, c71, c72, c73,
+		x72, y72, z71, 1.0, c71, c72, c73,
+		x72, y71, z71, 1.0, c71, c72, c73,
+		x71, y72, z71, 1.0, c71, c72, c73,
+
+		//Face : front
+		x71, y71, z72, 1.0, c71, c72, c73,
+		x72, y71, z72, 1.0, c71, c72, c73,
+		x71, y72, z72, 1.0, c71, c72, c73,
+		x72, y72, z72, 1.0, c71, c72, c73,
+		x72, y71, z72, 1.0, c71, c72, c73,
+		x71, y72, z72, 1.0, c71, c72, c73,
+
+		//	right
+
+		x72, y71, z72, 1.0, c71, c72, c73,
+		x72, y71, z71, 1.0, c71, c72, c73,
+		x72, y72, z72, 1.0, c71, c72, c73,
+		x72, y72, z71, 1.0, c71, c72, c73,
+		x72, y72, z72, 1.0, c71, c72, c73,
+		x72, y71, z71, 1.0, c71, c72, c73,
+
+		//left
+
+
+		x71, y71, z72, 1.0, c71, c72, c73,
+		x71, y71, z71, 1.0, c71, c72, c73,
+		x71, y72, z72, 1.0, c71, c72, c73,
+		x71, y72, z71, 1.0, c71, c72, c73,
+		x71, y72, z72, 1.0, c71, c72, c73,
+		x71, y71, z71, 1.0, c71, c72, c73,
+
+		//	bottom
+		x71, y71, z71, 1.0, c71, c72, c73,
+		x71, y71, z72, 1.0, c71, c72, c73,
+		x72, y71, z71, 1.0, c71, c72, c73,
+		x72, y71, z72, 1.0, c71, c72, c73,
+		x72, y71, z71, 1.0, c71, c72, c73,
+		x71, y71, z72, 1.0, c71, c72, c73,
+
+		//	top
+
+		x71, y72, z71, 1.0, c71, c72, c73,
+		x71, y72, z72, 1.0, c71, c72, c73,
+		x72, y72, z71, 1.0, c71, c72, c73,
+		x72, y72, z72, 1.0, c71, c72, c73,
+		x72, y72, z71, 1.0, c71, c72, c73,
+		x71, y72, z72, 1.0, c71, c72, c73,
+		//leg end
+
+		//end cowboy
+		//	dog	start
+
+		//face
+
+
+		x81, y81, z81, 1.0, c81, c82, c83,
+		x82, y81, z81, 1.0, c81, c82, c83,
+		x81, y82, z81, 1.0, c81, c82, c83,
+		x82, y82, z81, 1.0, c81, c82, c83,
+		x82, y81, z81, 1.0, c81, c82, c83,
+		x81, y82, z81, 1.0, c81, c82, c83,
+
+		//Face : front
+		x81, y81, z82, 1.0, c81, c82, c83,
+		x82, y81, z82, 1.0, c81, c82, c83,
+		x81, y82, z82, 1.0, c81, c82, c83,
+		x82, y82, z82, 1.0, c81, c82, c83,
+		x82, y81, z82, 1.0, c81, c82, c83,
+		x81, y82, z82, 1.0, c81, c82, c83,
+
+		//	right
+
+		x82, y81, z82, 1.0, c81, c82, c83,
+		x82, y81, z81, 1.0, c81, c82, c83,
+		x82, y82, z82, 1.0, c81, c82, c83,
+		x82, y82, z81, 1.0, c81, c82, c83,
+		x82, y82, z82, 1.0, c81, c82, c83,
+		x82, y81, z81, 1.0, c81, c82, c83,
+
+		//left
+
+
+		x81, y81, z82, 1.0, c81, c82, c83,
+		x81, y81, z81, 1.0, c81, c82, c83,
+		x81, y82, z82, 1.0, c81, c82, c83,
+		x81, y82, z81, 1.0, c81, c82, c83,
+		x81, y82, z82, 1.0, c81, c82, c83,
+		x81, y81, z81, 1.0, c81, c82, c83,
+
+		//	bottom
+		x81, y81, z81, 1.0, c81, c82, c83,
+		x81, y81, z82, 1.0, c81, c82, c83,
+		x82, y81, z81, 1.0, c81, c82, c83,
+		x82, y81, z82, 1.0, c81, c82, c83,
+		x82, y81, z81, 1.0, c81, c82, c83,
+		x81, y81, z82, 1.0, c81, c82, c83,
+
+		//	top
+
+		x81, y82, z81, 1.0, c81, c82, c83,
+		x81, y82, z82, 1.0, c81, c82, c83,
+		x82, y82, z81, 1.0, c81, c82, c83,
+		x82, y82, z82, 1.0, c81, c82, c83,
+		x82, y82, z81, 1.0, c81, c82, c83,
+		x81, y82, z82, 1.0, c81, c82, c83,
+
+		//left ear
+
+
+		x91, y91, z91, 1.0, c91, c92, c93,
+		x92, y91, z91, 1.0, c91, c92, c93,
+		x91, y92, z91, 1.0, c91, c92, c93,
+		x92, y92, z91, 1.0, c91, c92, c93,
+		x92, y91, z91, 1.0, c91, c92, c93,
+		x91, y92, z91, 1.0, c91, c92, c93,
+
+		//Face : front
+		x91, y91, z92, 1.0, c91, c92, c93,
+		x92, y91, z92, 1.0, c91, c92, c93,
+		x91, y92, z92, 1.0, c91, c92, c93,
+		x92, y92, z92, 1.0, c91, c92, c93,
+		x92, y91, z92, 1.0, c91, c92, c93,
+		x91, y92, z92, 1.0, c91, c92, c93,
+
+		//	right
+
+		x92, y91, z92, 1.0, c91, c92, c93,
+		x92, y91, z91, 1.0, c91, c92, c93,
+		x92, y92, z92, 1.0, c91, c92, c93,
+		x92, y92, z91, 1.0, c91, c92, c93,
+		x92, y92, z92, 1.0, c91, c92, c93,
+		x92, y91, z91, 1.0, c91, c92, c93,
+		//left
+
+
+		x91, y91, z92, 1.0, c91, c92, c93,
+		x91, y91, z91, 1.0, c91, c92, c93,
+		x91, y92, z92, 1.0, c91, c92, c93,
+		x91, y92, z91, 1.0, c91, c92, c93,
+		x91, y92, z92, 1.0, c91, c92, c93,
+		x91, y91, z91, 1.0, c91, c92, c93,
+		//	botom
+		x91, y91, z91, 1.0, c91, c92, c93,
+		x91, y91, z92, 1.0, c91, c92, c93,
+		x92, y91, z91, 1.0, c91, c92, c93,
+		x92, y91, z92, 1.0, c91, c92, c93,
+		x92, y91, z91, 1.0, c91, c92, c93,
+		x91, y91, z92, 1.0, c91, c92, c93,
+
+		//	top
+
+		x91, y92, z91, 1.0, c91, c92, c93,
+		x91, y92, z92, 1.0, c91, c92, c93,
+		x92, y92, z91, 1.0, c91, c92, c93,
+		x92, y92, z92, 1.0, c91, c92, c93,
+		x92, y92, z91, 1.0, c91, c92, c93,
+		x91, y92, z92, 1.0, c91, c92, c93,
+
+
+
+		//head end
+		//body start
+
+		// right ear
+		xa1, ya1, za1, 1.0, ca1, ca2, ca3,
+		xa2, ya1, za1, 1.0, ca1, ca2, ca3,
+		xa1, ya2, za1, 1.0, ca1, ca2, ca3,
+		xa2, ya2, za1, 1.0, ca1, ca2, ca3,
+		xa2, ya1, za1, 1.0, ca1, ca2, ca3,
+		xa1, ya2, za1, 1.0, ca1, ca2, ca3,
+
+		//Face : front
+		xa1, ya1, za2, 1.0, ca1, ca2, ca3,
+		xa2, ya1, za2, 1.0, ca1, ca2, ca3,
+		xa1, ya2, za2, 1.0, ca1, ca2, ca3,
+		xa2, ya2, za2, 1.0, ca1, ca2, ca3,
+		xa2, ya1, za2, 1.0, ca1, ca2, ca3,
+		xa1, ya2, za2, 1.0, ca1, ca2, ca3,
+
+		//	right
+
+		xa2, ya1, za2, 1.0, ca1, ca2, ca3,
+		xa2, ya1, za1, 1.0, ca1, ca2, ca3,
+		xa2, ya2, za2, 1.0, ca1, ca2, ca3,
+		xa2, ya2, za1, 1.0, ca1, ca2, ca3,
+		xa2, ya2, za2, 1.0, ca1, ca2, ca3,
+		xa2, ya1, za1, 1.0, ca1, ca2, ca3,
+
+		//left
+
+
+		xa1, ya1, za2, 1.0, ca1, ca2, ca3,
+		xa1, ya1, za1, 1.0, ca1, ca2, ca3,
+		xa1, ya2, za2, 1.0, ca1, ca2, ca3,
+		xa1, ya2, za1, 1.0, ca1, ca2, ca3,
+		xa1, ya2, za2, 1.0, ca1, ca2, ca3,
+		xa1, ya1, za1, 1.0, ca1, ca2, ca3,
+
+		//	bottom
+		xa1, ya1, za1, 1.0, ca1, ca2, ca3,
+		xa1, ya1, za2, 1.0, ca1, ca2, ca3,
+		xa2, ya1, za1, 1.0, ca1, ca2, ca3,
+		xa2, ya1, za2, 1.0, ca1, ca2, ca3,
+		xa2, ya1, za1, 1.0, ca1, ca2, ca3,
+		xa1, ya1, za2, 1.0, ca1, ca2, ca3,
+
+		//	top
+
+		xa1, ya2, za1, 1.0, 0, 0, 1,
+		xa1, ya2, za2, 1.0, 1, 0, 0,
+		xa2, ya2, za1, 1.0, 0, 1, 0,
+		xa2, ya2, za2, 1.0, ca1, ca2, ca3,
+		xa2, ya2, za1, 1.0, ca1, ca2, ca3,
+		xa1, ya2, za2, 1.0, ca1, ca2, ca3,
+
+		// right ear
+		xb1, yb1, zb1, 1.0, cb1, cb2, cb3,
+		xb2, yb1, zb1, 1.0, cb1, cb2, cb3,
+		xb1, yb2, zb1, 1.0, cb1, cb2, cb3,
+		xb2, yb2, zb1, 1.0, cb1, cb2, cb3,
+		xb2, yb1, zb1, 1.0, cb1, cb2, cb3,
+		xb1, yb2, zb1, 1.0, cb1, cb2, cb3,
+
+		//Face : front
+		xb1, yb1, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb1, zb2, 1.0, cb1, cb2, cb3,
+		xb1, yb2, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb2, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb1, zb2, 1.0, cb1, cb2, cb3,
+		xb1, yb2, zb2, 1.0, cb1, cb2, cb3,
+
+		//	right
+
+		xb2, yb1, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb1, zb1, 1.0, cb1, cb2, cb3,
+		xb2, yb2, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb2, zb1, 1.0, cb1, cb2, cb3,
+		xb2, yb2, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb1, zb1, 1.0, cb1, cb2, cb3,
+
+		//left
+
+
+		xb1, yb1, zb2, 1.0, cb1, cb2, cb3,
+		xb1, yb1, zb1, 1.0, cb1, cb2, cb3,
+		xb1, yb2, zb2, 1.0, cb1, cb2, cb3,
+		xb1, yb2, zb1, 1.0, cb1, cb2, cb3,
+		xb1, yb2, zb2, 1.0, cb1, cb2, cb3,
+		xb1, yb1, zb1, 1.0, cb1, cb2, cb3,
+
+		//	bottom
+		xb1, yb1, zb1, 1.0, cb1, cb2, cb3,
+		xb1, yb1, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb1, zb1, 1.0, cb1, cb2, cb3,
+		xb2, yb1, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb1, zb1, 1.0, cb1, cb2, cb3,
+		xb1, yb1, zb2, 1.0, cb1, cb2, cb3,
+
+		//	top
+
+		xb1, yb2, zb1, 1.0, cb1, cb2, cb3,
+		xb1, yb2, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb2, zb1, 1.0, cb1, cb2, cb3,
+		xb2, yb2, zb2, 1.0, cb1, cb2, cb3,
+		xb2, yb2, zb1, 1.0, cb1, cb2, cb3,
+		xb1, yb2, zb2, 1.0, cb1, cb2, cb3,
+
+		//body end
+
+		// legs start
+
+		xc1, yc1, zc1, 1.0, cc1, cc2, cc3,
+		xc2, yc1, zc1, 1.0, cc1, cc2, cc3,
+		xc1, yc2, zc1, 1.0, cc1, cc2, cc3,
+		xc2, yc2, zc1, 1.0, cc1, cc2, cc3,
+		xc2, yc1, zc1, 1.0, cc1, cc2, cc3,
+		xc1, yc2, zc1, 1.0, cc1, cc2, cc3,
+
+		//Face : front
+		xc1, yc1, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc1, zc2, 1.0, cc1, cc2, cc3,
+		xc1, yc2, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc2, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc1, zc2, 1.0, cc1, cc2, cc3,
+		xc1, yc2, zc2, 1.0, cc1, cc2, cc3,
+
+		//right
+
+		xc2, yc1, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc1, zc1, 1.0, cc1, cc2, cc3,
+		xc2, yc2, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc2, zc1, 1.0, cc1, cc2, cc3,
+		xc2, yc2, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc1, zc1, 1.0, cc1, cc2, cc3,
+
+		//left
+
+
+		xc1, yc1, zc2, 1.0, cc1, cc2, cc3,
+		xc1, yc1, zc1, 1.0, cc1, cc2, cc3,
+		xc1, yc2, zc2, 1.0, cc1, cc2, cc3,
+		xc1, yc2, zc1, 1.0, cc1, cc2, cc3,
+		xc1, yc2, zc2, 1.0, cc1, cc2, cc3,
+		xc1, yc1, zc1, 1.0, cc1, cc2, cc3,
+
+		//	bottom
+		xc1, yc1, zc1, 1.0, cc1, cc2, cc3,
+		xc1, yc1, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc1, zc1, 1.0, cc1, cc2, cc3,
+		xc2, yc1, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc1, zc1, 1.0, cc1, cc2, cc3,
+		xc1, yc1, zc2, 1.0, cc1, cc2, cc3,
+
+		//	top
+
+		xc1, yc2, zc1, 1.0, cc1, cc2, cc3,
+		xc1, yc2, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc2, zc1, 1.0, cc1, cc2, cc3,
+		xc2, yc2, zc2, 1.0, cc1, cc2, cc3,
+		xc2, yc2, zc1, 1.0, cc1, cc2, cc3,
+		xc1, yc2, zc2, 1.0, cc1, cc2, cc3,
+
+		//Hand part
+		//back
+		xd1, yd1, zd1, 1.0, cd1, cd2, cd3,
+		xd2, yd1, zd1, 1.0, cd1, cd2, cd3,
+		xd1, yd2, zd1, 1.0, cd1, cd2, cd3,
+		xd2, yd2, zd1, 1.0, cd1, cd2, cd3,
+		xd2, yd1, zd1, 1.0, cd1, cd2, cd3,
+		xd1, yd2, zd1, 1.0, cd1, cd2, cd3,
+
+		//Face : front
+		xd1, yd1, zd2, 1.0, cd1, cd2, cd3,
+		xd2, yd1, zd2, 1.0, cd1, cd2, cd3,
+		xd1, yd2, zd2, 1.0, cd1, cd2, cd3,
+		xd2, yd2, zd2, 1.0, cd1, cd2, cd3,
+		xd2, yd1, zd2, 1.0, cd1, cd2, cd3,
+		xd1, yd2, zd2, 1.0, cd1, cd2, cd3,
+
+		//	right
+
+		xd2, yd1, zd2, 1.0, cd1, cd2, cd3,
+		xd2, yd1, zd1, 1.0, cd1, cd2, cd3,
+		xd2, yd2, zd2, 1.0, cd1, cd2, cd3,
+		xd2, yd2, zd1, 1.0, cd1, cd2, cd3,
+		xd2, yd2, zd2, 1.0, cd1, cd2, cd3,
+		xd2, yd1, zd1, 1.0, cd1, cd2, cd3,
+
+		//left
+
+
+		xd1, yd1, zd2, 1.0, cd1, cd2, cd3,
+		xd1, yd1, zd1, 1.0, cd1, cd2, cd3,
+		xd1, yd2, zd2, 1.0, cd1, cd2, cd3,
+		xd1, yd2, zd1, 1.0, cd1, cd2, cd3,
+		xd1, yd2, zd2, 1.0, cd1, cd2, cd3,
+		xd1, yd1, zd1, 1.0, cd1, cd2, cd3,
+
+		//	bottom
+		xd1, yd1, zd1, 1.0, cd1, cd2, cd3,
+		xd1, yd1, zd2, 1.0, cd1, cd2, cd3,
+		xd2, yd1, zd1, 1.0, cd1, cd2, cd3,
+		xd2, yd1, zd2, 1.0, cd1, cd2, cd3,
+		xd2, yd1, zd1, 1.0, cd1, cd2, cd3,
+		xd1, yd1, zd2, 1.0, cd1, cd2, cd3,
+
+		//	top
+
+		xd1, yd2, zd1, 1.0, 1, 0, 0,
+		xd1, yd2, zd2, 1.0, 0, 0, 1,
+		xd2, yd2, zd1, 1.0, 0, 1, 0,
+		xd2, yd2, zd2, 1.0, cd1, cd2, cd3,
+		xd2, yd2, zd1, 1.0, cd1, cd2, cd3,
+		xd1, yd2, zd2, 1.0, cd1, cd2, cd3,
+
+	]);
+
+
+
+
+}
+
 function drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
 	//==============================================================================
 	// Clear <canvas>  colors AND the depth buffer
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	modelMatrix.setIdentity();    // DEFINE 'world-space' coords.
 
-	/*
-	// STEP 2: add in a 'perspective()' function call here to define 'camera lens':
-	  modelMatrix.perspective(	??,   // FOVY: top-to-bottom vertical image angle, in degrees
-								??,   // Image Aspect Ratio: camera lens width/height
-									  ??,   // camera z-near distance (always positive; frustum begins at z = -znear)
-									??);  // camera z-far distance (always positive; frustum ends at z = -zfar)
-    
-	*/
 
-	/*
-	//  STEP 1:
-	// Make temporary view matrix that is still close to the origin and
-	// won't lose sight of our current CVV contents when used without 
-	// a properly-constructed projection matrix.
-	//TEMPORARY: 1/10th size camera pose to see what's in CVV locations
-	  modelMatrix.lookAt( ??, ??, ??,	// center of projection
-						  ??, ??, ??,	// look-at point 
-						  ??, ??, ??);	// View UP vector.
-	*/
 
-	/*
-	// STEP 3: 
-	//Replace the temporary view matrix with your final view matrix...
-	// GOAL: camera positioned at 3D point (5,5,3), looking at the 
-	//       3D point (-1,-2,-0.5),  using up vector (0,0,1).
-    
-	  modelMatrix.lookAt( ??, ??, ??,	// center of projection
-						  ??, ??, ??,	// look-at point 
-						  ??, ??, ??);	// View UP vector.
-	*/
+	
 
-	//===========================================================
-	//
-	pushMatrix(modelMatrix);     // SAVE world coord system;
-	//-------Draw Spinning Cylinder:
-	modelMatrix.translate(-0.4, -0.4, 0.0);  // 'set' means DISCARD old matrix,
-	// (drawing axes centered in CVV), and then make new
-	// drawing axes moved to the lower-left corner of CVV. 
-	modelMatrix.scale(0.2, 0.2, 0.2);
-	// if you DON'T scale, cyl goes outside the CVV; clipped!
-	modelMatrix.rotate(currentAngle, 0, 1, 0);  // spin around y axis.
-	// Drawing:
-	// Pass our current matrix to the vertex shaders:
-	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
-	// Draw the cylinder's vertices, and no other vertices:
-	gl.drawArrays(gl.TRIANGLE_STRIP,				// use this drawing primitive, and
-		cylStart / floatsPerVertex, // start at this vertex number, and
-		cylVerts.length / floatsPerVertex);	// draw this many vertices.
-	modelMatrix = popMatrix();  // RESTORE 'world' drawing coords.
-	//===========================================================
-	//  
-	pushMatrix(modelMatrix);  // SAVE world drawing coords.
-	//--------Draw Spinning Sphere
-	modelMatrix.translate(0.4, 0.4, 0.0); // 'set' means DISCARD old matrix,
-	// (drawing axes centered in CVV), and then make new
-	// drawing axes moved to the lower-left corner of CVV.
-	// to match WebGL display canvas.
-	modelMatrix.scale(0.3, 0.3, 0.3);
-	// Make it smaller:
-	modelMatrix.rotate(currentAngle, 1, 1, 0);  // Spin on XY diagonal axis
-	// Drawing:		
-	// Pass our current matrix to the vertex shaders:
-	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
-	// Draw just the sphere's vertices
-	gl.drawArrays(gl.TRIANGLE_STRIP,				// use this drawing primitive, and
-		sphStart / floatsPerVertex,	// start at this vertex number, and 
-		sphVerts.length / floatsPerVertex);	// draw this many vertices.
-	modelMatrix = popMatrix();  // RESTORE 'world' drawing coords.
-
-	//===========================================================
-	//  
-	pushMatrix(modelMatrix);  // SAVE world drawing coords.
-	//--------Draw Spinning torus
-	modelMatrix.translate(-0.4, 0.4, 0.0);	// 'set' means DISCARD old matrix,
-
-	modelMatrix.scale(0.3, 0.3, 0.3);
-	// Make it smaller:
-	modelMatrix.rotate(currentAngle, 0, 1, 1);  // Spin on YZ axis
-	// Drawing:		
-	// Pass our current matrix to the vertex shaders:
-	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
-	// Draw just the torus's vertices
-	gl.drawArrays(gl.TRIANGLE_STRIP, 				// use this drawing primitive, and
-		torStart / floatsPerVertex,	// start at this vertex number, and
-		torVerts.length / floatsPerVertex);	// draw this many vertices.
-	modelMatrix = popMatrix();  // RESTORE 'world' drawing coords.
-	//===========================================================
-	//
 	pushMatrix(modelMatrix);  // SAVE world drawing coords.
 	//---------Draw Ground Plane, without spinning.
 	// position it.
@@ -710,6 +1568,215 @@ function drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
 		gndVerts.length / floatsPerVertex);	// draw this many vertices.
 	modelMatrix = popMatrix();  // RESTORE 'world' drawing coords.
 	//===========================================================
+	//old shapes
+	modelMatrix.setTranslate(-0.25, 0, 0.0);
+
+	// convert to left-handed coord sys
+
+
+
+
+
+
+	var dist = Math.sqrt(g_xMdragTot * g_xMdragTot + g_yMdragTot * g_yMdragTot);
+
+	modelMatrix.rotate(dist * 120.0, -g_yMdragTot + 0.0001, g_xMdragTot + 0.0001, 0.0);
+
+	modelMatrix.scale(0.5, 0.5, 0.5);
+
+	pushMatrix(modelMatrix);
+	modelMatrix.rotate(-g_angle05, 0, 1, 0);
+	modelMatrix.translate(0.2, 0, 0);
+	pushMatrix(modelMatrix);
+
+
+
+	//Body
+	modelMatrix.rotate(-g_angle02, 1, 0, 0);
+	modelMatrix.translate(0, 0, -0.1);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 180, 36);
+
+
+	//head
+
+	pushMatrix(modelMatrix);
+
+	modelMatrix.scale(0.75, 0.75, 0.75);
+
+	modelMatrix.translate(0.125, 1.075, 0);
+
+
+
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 0, 108);
+	modelMatrix = popMatrix();
+
+	//right arm
+
+	//	g_modelMatrix = popMatrix(g_modelMatrix);
+	pushMatrix(modelMatrix);
+
+	modelMatrix.scale(0.5, 0.5, 0.5);
+	modelMatrix.translate(0, 1.55, 0);
+
+
+
+	modelMatrix.rotate(g_angle01 + 180, 0, 0, 1);
+	modelMatrix.translate(-0.1, -0.5, 0);
+
+
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 108, 72);
+
+	modelMatrix = popMatrix();
+	//left arm
+
+	pushMatrix(modelMatrix);
+
+	modelMatrix.scale(0.5, 0.5, 0.5);
+	modelMatrix.translate(0.75, 1.50, 0.25);
+
+	modelMatrix.rotate(g_angle01, 0, 0, 1);
+	modelMatrix.translate(-0.1, -0.5, 0);
+
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 108, 72);
+
+	modelMatrix = popMatrix();
+
+
+
+
+	modelMatrix = popMatrix();
+
+
+	//right leg
+	pushMatrix(modelMatrix);
+
+	modelMatrix.scale(0.75, 0.75, 0.75);
+
+	modelMatrix.translate(0.01, -0.7, 0);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 216, 72);
+
+	modelMatrix = popMatrix();
+	//left leg
+	pushMatrix(modelMatrix);
+
+	modelMatrix.scale(0.75, 0.75, 0.75);
+
+	modelMatrix.translate(0.32, -0.7, 0);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 216, 72);
+
+
+	modelMatrix = popMatrix();
+	modelMatrix = popMatrix();
+
+	//cowboy end
+
+	//pig start
+
+	modelMatrix.rotate(g_angle04, 0, 1, 0);
+	modelMatrix.translate(0.6, -0.2, 0);
+
+	pushMatrix(modelMatrix);
+
+	//body
+
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 396, 36);
+
+	modelMatrix = popMatrix();
+
+	//body end
+	//face start
+	pushMatrix(modelMatrix);
+	modelMatrix.translate(0.05, 0.2, 0);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 288, 108);
+	modelMatrix = popMatrix();
+
+	//forder right leg
+
+	pushMatrix(modelMatrix);
+
+	modelMatrix.scale(0.75, 0.75, 0.75);
+
+	modelMatrix.translate(0, 0, 0.1);
+
+	modelMatrix.rotate(g_angle03, 1, 0, 0);
+	modelMatrix.translate(0, -0.35, -0.1);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 432, 72);
+	modelMatrix = popMatrix();
+
+	//forder left leg
+
+	pushMatrix(modelMatrix);
+
+	modelMatrix.scale(0.75, 0.75, 0.75);
+
+	modelMatrix.translate(0.33, 0, 0.1);
+
+	modelMatrix.rotate(g_angle03, 1, 0, 0);
+	modelMatrix.translate(0, -0.35, -0.1);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 432, 72);
+	modelMatrix = popMatrix();
+
+	//back right leg
+
+	pushMatrix(modelMatrix);
+
+	modelMatrix.scale(0.75, 0.75, 0.75);
+
+	modelMatrix.translate(0, 0, 0.7);
+
+	modelMatrix.rotate(-g_angle03, 1, 0, 0);
+	modelMatrix.translate(0, -0.35, -0.1);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 432, 72);
+	modelMatrix = popMatrix();
+
+	//back left leg
+	pushMatrix(modelMatrix);
+
+	modelMatrix.scale(0.75, 0.75, 0.75);
+
+	modelMatrix.translate(0.33, 0, 0.7);
+
+	modelMatrix.rotate(-g_angle03, 1, 0, 0);
+	modelMatrix.translate(0, -0.35, -0.1);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 432, 72);
+	modelMatrix = popMatrix();	
+
 }
 
 // Last time that this function was called:  (used for animation timing)
@@ -726,6 +1793,55 @@ function animate(angle) {
 	//  if(angle >  120.0 && ANGLE_STEP > 0) ANGLE_STEP = -ANGLE_STEP;
 	//  if(angle < -120.0 && ANGLE_STEP < 0) ANGLE_STEP = -ANGLE_STEP;
 
+
+
+
+	if (g_isRun == true) {
+		g_angle05 = g_angle05 + (g_angle05Rate * elapsed) / 1000.0;
+	}
+
+	g_angle05 %= 360;
+	if (g_isRun == true) {
+		g_angle01 = g_angle01 + (g_angle01Rate * elapsed) / 1000.0;
+	}
+
+	if (g_angle01 > 160.0 && g_angle01Rate > 0) g_angle01Rate = -g_angle01Rate
+	if (g_angle01 < 10.0 && g_angle01Rate < 0) g_angle01Rate = -g_angle01Rate
+
+
+	if (g_isRun == true) {
+
+		g_angle02 = g_angle02 + (g_angle02Rate * elapsed) / 1000.0;
+	}
+
+	if (g_angle02 > 180.0) g_angle02 = g_angle02 - 360.0;
+	if (g_angle02 < -180.0) g_angle02 = g_angle02 + 360.0;
+
+	if (g_angle02 > 60.0 && g_angle02Rate > 0) g_angle02Rate *= -1.0;
+	if (g_angle02 < 0.0 && g_angle02Rate < 0) g_angle02Rate *= -1.0;
+
+	var eps = 5
+
+
+
+	if ((w_is_pushed || s_is_pushed) || !((g_angle03 < eps) && ((g_angle03 > -eps)))) {
+		g_angle03 = g_angle03 + (g_angle03Rate * elapsed) / 1000.0;
+		if (g_angle03 > 100.0 && g_angle03Rate > 0) g_angle03Rate = -g_angle03Rate
+		if (g_angle03 < -10.0 && g_angle03Rate < 0) g_angle03Rate = -g_angle03Rate
+	}
+
+	if ((w_is_pushed || s_is_pushed) || !((g_angle03 < eps) && ((g_angle03 > -eps)))) {
+
+		if (w_is_pushed || w_last_pushed) {
+			g_angle04 = g_angle04 + (g_angle04Rate * elapsed) / 1000.0;
+			w_last_pushed = true;
+		}
+		else {
+			g_angle04 = g_angle04 - (g_angle04Rate * elapsed) / 1000.0;
+			w_last_pushed = false
+		}
+
+	}
 	var newAngle = angle + (ANGLE_STEP * elapsed) / 1000.0;
 	return newAngle %= 360;
 }
@@ -753,3 +1869,233 @@ function runStop() {
 		ANGLE_STEP = myTmp;
 	}
 }
+
+//===================Mouse and Keyboard event-handling Callbacks
+
+function myMouseDown(ev) {
+	//==============================================================================
+	// Called when user PRESSES down any mouse button;
+	// 									(Which button?    console.log('ev.button='+ev.button);   )
+	// 		ev.clientX, ev.clientY == mouse pointer location, but measured in webpage 
+	//		pixels: left-handed coords; UPPER left origin; Y increases DOWNWARDS (!)  
+
+	// Create right-handed 'pixel' coords with origin at WebGL canvas LOWER left;
+	var rect = ev.target.getBoundingClientRect();	// get canvas corners in pixels
+	var xp = ev.clientX - rect.left;									// x==0 at canvas left edge
+	var yp = g_canvas.height - (ev.clientY - rect.top);	// y==0 at canvas bottom edge
+	//  console.log('myMouseDown(pixel coords): xp,yp=\t',xp,',\t',yp);
+
+	// Convert to Canonical View Volume (CVV) coordinates too:
+	var x = (xp - g_canvas.width / 2) / 		// move origin to center of canvas and
+		(g_canvas.width / 2);			// normalize canvas to -1 <= x < +1,
+	var y = (yp - g_canvas.height / 2) /		//										 -1 <= y < +1.
+		(g_canvas.height / 2);
+	//	console.log('myMouseDown(CVV coords  ):  x, y=\t',x,',\t',y);
+
+	g_isDrag = true;											// set our mouse-dragging flag
+	g_xMclik = x;													// record where mouse-dragging began
+	g_yMclik = y;
+	// report on webpage
+	document.getElementById('MouseAtResult').innerHTML =
+		'Mouse At: ' + x.toFixed(g_digits) + ', ' + y.toFixed(g_digits);
+};
+
+
+function myMouseMove(ev) {
+	//==============================================================================
+	// Called when user MOVES the mouse with a button already pressed down.
+	// 									(Which button?   console.log('ev.button='+ev.button);    )
+	// 		ev.clientX, ev.clientY == mouse pointer location, but measured in webpage 
+	//		pixels: left-handed coords; UPPER left origin; Y increases DOWNWARDS (!)  
+
+	if (g_isDrag == false) return;				// IGNORE all mouse-moves except 'dragging'
+
+	// Create right-handed 'pixel' coords with origin at WebGL canvas LOWER left;
+	var rect = ev.target.getBoundingClientRect();	// get canvas corners in pixels
+	var xp = ev.clientX - rect.left;									// x==0 at canvas left edge
+	var yp = g_canvas.height - (ev.clientY - rect.top);	// y==0 at canvas bottom edge
+	//  console.log('myMouseMove(pixel coords): xp,yp=\t',xp,',\t',yp);
+
+	// Convert to Canonical View Volume (CVV) coordinates too:
+	var x = (xp - g_canvas.width / 2) / 		// move origin to center of canvas and
+		(g_canvas.width / 2);		// normalize canvas to -1 <= x < +1,
+	var y = (yp - g_canvas.height / 2) /		//									-1 <= y < +1.
+		(g_canvas.height / 2);
+	//	console.log('myMouseMove(CVV coords  ):  x, y=\t',x,',\t',y);
+
+	// find how far we dragged the mouse:
+	g_xMdragTot += (x - g_xMclik);			// Accumulate change-in-mouse-position,&
+	g_yMdragTot += (y - g_yMclik);
+	// Report new mouse position & how far we moved on webpage:
+	document.getElementById('MouseAtResult').innerHTML =
+		'Mouse At: ' + x.toFixed(g_digits) + ', ' + y.toFixed(g_digits);
+	document.getElementById('MouseDragResult').innerHTML =
+		'Mouse Drag: ' + (x - g_xMclik).toFixed(g_digits) + ', '
+		+ (y - g_yMclik).toFixed(g_digits);
+
+	g_xMclik = x;											// Make next drag-measurement from here.
+	g_yMclik = y;
+};
+
+function myMouseUp(ev) {
+	//==============================================================================
+	// Called when user RELEASES mouse button pressed previously.
+	// 									(Which button?   console.log('ev.button='+ev.button);    )
+	// 		ev.clientX, ev.clientY == mouse pointer location, but measured in webpage 
+	//		pixels: left-handed coords; UPPER left origin; Y increases DOWNWARDS (!)  
+
+	// Create right-handed 'pixel' coords with origin at WebGL canvas LOWER left;
+	var rect = ev.target.getBoundingClientRect();	// get canvas corners in pixels
+	var xp = ev.clientX - rect.left;									// x==0 at canvas left edge
+	var yp = g_canvas.height - (ev.clientY - rect.top);	// y==0 at canvas bottom edge
+	//  console.log('myMouseUp  (pixel coords):\n\t xp,yp=\t',xp,',\t',yp);
+
+	// Convert to Canonical View Volume (CVV) coordinates too:
+	var x = (xp - g_canvas.width / 2) / 		// move origin to center of canvas and
+		(g_canvas.width / 2);			// normalize canvas to -1 <= x < +1,
+	var y = (yp - g_canvas.height / 2) /		//										 -1 <= y < +1.
+		(g_canvas.height / 2);
+	console.log('myMouseUp  (CVV coords  ):\n\t x, y=\t', x, ',\t', y);
+
+	g_isDrag = false;											// CLEAR our mouse-dragging flag, and
+	// accumulate any final bit of mouse-dragging we did:
+	g_xMdragTot += (x - g_xMclik);
+	g_yMdragTot += (y - g_yMclik);
+	// Report new mouse position:
+	document.getElementById('MouseAtResult').innerHTML =
+		'Mouse At: ' + x.toFixed(g_digits) + ', ' + y.toFixed(g_digits);
+	console.log('myMouseUp: g_xMdragTot,g_yMdragTot =',
+		g_xMdragTot.toFixed(g_digits), ',\t', g_yMdragTot.toFixed(g_digits));
+};
+
+function myMouseClick(ev) {
+	//=============================================================================
+	// Called when user completes a mouse-button single-click event 
+	// (e.g. mouse-button pressed down, then released)
+	// 									   
+	//    WHICH button? try:  console.log('ev.button='+ev.button); 
+	// 		ev.clientX, ev.clientY == mouse pointer location, but measured in webpage 
+	//		pixels: left-handed coords; UPPER left origin; Y increases DOWNWARDS (!) 
+	//    See myMouseUp(), myMouseDown() for conversions to  CVV coordinates.
+
+	// STUB
+	console.log("myMouseClick() on button: ", ev.button);
+}
+
+function myMouseDblClick(ev) {
+	//=============================================================================
+	// Called when user completes a mouse-button double-click event 
+	// 									   
+	//    WHICH button? try:  console.log('ev.button='+ev.button); 
+	// 		ev.clientX, ev.clientY == mouse pointer location, but measured in webpage 
+	//		pixels: left-handed coords; UPPER left origin; Y increases DOWNWARDS (!) 
+	//    See myMouseUp(), myMouseDown() for conversions to  CVV coordinates.
+
+	// STUB
+	console.log("myMouse-DOUBLE-Click() on button: ", ev.button);
+}
+
+function myKeyDown(kev) {
+	//===============================================================================
+	// Called when user presses down ANY key on the keyboard;
+	//
+	// For a light, easy explanation of keyboard events in JavaScript,
+	// see:    http://www.kirupa.com/html5/keyboard_events_in_javascript.htm
+	// For a thorough explanation of a mess of JavaScript keyboard event handling,
+	// see:    http://javascript.info/tutorial/keyboard-events
+	//
+	// NOTE: Mozilla deprecated the 'keypress' event entirely, and in the
+	//        'keydown' event deprecated several read-only properties I used
+	//        previously, including kev.charCode, kev.keyCode. 
+	//        Revised 2/2019:  use kev.key and kev.code instead.
+	//
+	// Report EVERYTHING in console:
+	console.log("--kev.code:", kev.code, "\t\t--kev.key:", kev.key,
+		"\n--kev.ctrlKey:", kev.ctrlKey, "\t--kev.shiftKey:", kev.shiftKey,
+		"\n--kev.altKey:", kev.altKey, "\t--kev.metaKey:", kev.metaKey);
+
+	// and report EVERYTHING on webpage:
+	document.getElementById('KeyDownResult').innerHTML = ''; // clear old results
+	document.getElementById('KeyModResult').innerHTML = '';
+	// key details:
+	document.getElementById('KeyModResult').innerHTML =
+		"   --kev.code:" + kev.code + "      --kev.key:" + kev.key +
+		"<br>--kev.ctrlKey:" + kev.ctrlKey + " --kev.shiftKey:" + kev.shiftKey +
+		"<br>--kev.altKey:" + kev.altKey + "  --kev.metaKey:" + kev.metaKey;
+
+	switch (kev.code) {
+		case "KeyP":
+			console.log("Pause/unPause!\n");                // print on console,
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown() found p/P key. Pause/unPause!';   // print on webpage
+			if (g_isRun == true) {
+				g_isRun = false;    // STOP animation
+			}
+			else {
+				g_isRun = true;     // RESTART animation
+				tick();
+			}
+			break;
+		//------------------WASD navigation-----------------
+		case "KeyA":
+			console.log("a/A key: Strafe LEFT!\n");
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown() found a/A key. Strafe LEFT!';
+			break;
+		case "KeyD":
+			console.log("d/D key: Strafe RIGHT!\n");
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown() found d/D key. Strafe RIGHT!';
+			break;
+		case "KeyS":
+			console.log("s/S key: Move BACK!\n");
+			s_is_pushed = true;
+			w_last_pushed = false;
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown() found s/Sa key. Move BACK.';
+			break;
+		case "KeyW":
+			w_is_pushed = true;
+			w_last_pushed = true;
+			console.log("w/W key: Move FWD!\n");
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown() found w/W key. Move FWD!';
+			break;
+		//----------------Arrow keys------------------------
+		case "ArrowLeft":
+			console.log(' left-arrow.');
+			// and print on webpage in the <div> element with id='Result':
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown(): Left Arrow=' + kev.keyCode;
+			break;
+		case "ArrowRight":
+			console.log('right-arrow.');
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown():Right Arrow:keyCode=' + kev.keyCode;
+			break;
+		case "ArrowUp":
+			console.log('   up-arrow.');
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown():   Up Arrow:keyCode=' + kev.keyCode;
+			break;
+		case "ArrowDown":
+			console.log(' down-arrow.');
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown(): Down Arrow:keyCode=' + kev.keyCode;
+			break;
+		default:
+			console.log("UNUSED!");
+			document.getElementById('KeyDownResult').innerHTML =
+				'myKeyDown(): UNUSED!';
+			break;
+	}
+}
+
+function myKeyUp(kev) {
+	//===============================================================================
+	// Called when user releases ANY key on the keyboard; captures scancodes well
+	s_is_pushed = false;
+	w_is_pushed = false;
+	console.log('myKeyUp()--keyCode=' + kev.keyCode + ' released.');
+}
+
