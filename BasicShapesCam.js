@@ -47,9 +47,27 @@ var floatsPerVertex = 7;	// # of Float32Array elements used for each vertex
 // (x,y,z) surface normal + (tx,ty) texture addr.
 var g_vertsMax = 0;                 // number of vertices held in the VBO 
 // (global: replaces local 'n' variable)
-var modelMatrix = new Matrix4();  // Construct 4x4 matrix; contents get sent
+var modelMatrix = new Matrix4(); 
+var view = new Matrix4();
+var projection = new Matrix4(); // Construct 4x4 matrix; contents get sent
 // to the GPU/Shaders as a 'uniform' var.
-var u_ModelMatrix;                  // that uniform's location in the GPU
+var u_ModelMatrix;
+var costum_Projmatrix;
+var costum_Viewmatrix;  
+
+//look_at variables
+var x_location = 5
+var y_location = 5
+var z_location = 3
+
+var x_refrence = 0
+var y_refrence = 0
+var z_refrence = 0
+
+var x_up = 0
+var y_up = 0
+var z_up = 1
+
 
 //------------For Animation---------------------------------------------
 var g_isRun = true;                 // run/stop for animation; used in tick().
@@ -58,10 +76,10 @@ var g_lastMS = Date.now();    			// Timestamp for most-recently-drawn image;
 // (now called 'timerAll()' ) to find time
 // elapsed since last on-screen image.
 var g_angle01 = 0;                  // initial rotation angle
-var g_angle01Rate = 45.0;           // rotation speed, in degrees/second 
+var g_angle01Rate = 20.0;           // rotation speed, in degrees/second 
 
 var g_angle02 = 0;                  // initial rotation angle
-var g_angle02Rate = 40.0;
+var g_angle02Rate = 15.0;
 
 var g_angle03 = 0;
 var g_angle03Rate = 200;
@@ -76,6 +94,9 @@ var w_is_pushed = false;
 var s_is_pushed = false;
 
 var w_last_pushed = true;
+
+var ArrowDOWN_is_pushed = false;
+var ArrowUP_is_pushed = false;
 // rotation speed, in degrees/second 
 
 //------------For mouse click-and-drag: -------------------------------
@@ -146,9 +167,9 @@ function main() {
 
 
 	//here changes
-	var u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
-	var costum_Viewmatrix = gl.getUniformLocation(gl.program, 'costum_Viewmatrix');
-	var costum_Projmatrix = gl.getUniformLocation(gl.program, 'costum_Projmatrix');
+	 u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
+	 costum_Viewmatrix = gl.getUniformLocation(gl.program, 'costum_Viewmatrix');
+	 costum_Projmatrix = gl.getUniformLocation(gl.program, 'costum_Projmatrix');
 	if (!u_ModelMatrix) {
 		console.log('Failed to get the storage location of u_ModelMatrix');
 		return;
@@ -160,17 +181,8 @@ function main() {
 		return;
 	}
 
-	var modelMatrix = new Matrix4();
-	var view = new Matrix4();
-	var projection = new Matrix4();
 
 
-	view.setLookAt(5, 5, 3, -1, -2, -0.5, 0, 0, 1);
-	projection.setPerspective(42.0, 1.0, 1.0, 1000.0);
-
-	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
-	gl.uniformMatrix4fv(costum_Projmatrix, false, projection.elements);
-	gl.uniformMatrix4fv(costum_Viewmatrix, false, view.elements);
 
 
 
@@ -181,7 +193,7 @@ function main() {
 	// Start drawing: create 'tick' variable whose value is this function:
 	var tick = function () {
 		currentAngle = animate(currentAngle);  // Update the rotation angle
-		drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix);   // Draw shapes
+		draw_two(gl, n, currentAngle, modelMatrix, u_ModelMatrix);   // Draw shapes
 		// report current angle on console
 		//console.log('currentAngle=',currentAngle);
 		requestAnimationFrame(tick, canvas);
@@ -198,9 +210,12 @@ function initVertexBuffer(gl) {
 
 	// Make each 3D shape in its own array of vertices:
 	make_old_shapes();				// create, fill the torVerts array
-	makeGroundGrid();				// create, fill the gndVerts array
+	makeGroundGrid();
+	makeCylinder();
+	makeTorus();
+	make_Axes();				// create, fill the gndVerts array
 	// how many floats total needed to store all shapes?
-	var mySiz = ( gndVerts.length + old_shapes_vers.length);
+	var mySiz = ( gndVerts.length + old_shapes_vers.length + cylVerts.length + torVerts.length + axes_vars.length);
 
 	// How many vertices total?
 	var nn = mySiz / floatsPerVertex;
@@ -215,6 +230,18 @@ function initVertexBuffer(gl) {
 	gndStart = i;							// we stored the cylinder first.
 	for (j = 0; j < gndVerts.length; i++, j++) {
 		colorShapes[i] = gndVerts[j];
+	}
+	cylStart = i;							// we stored the cylinder first.
+	for (j = 0; j < cylVerts.length; i++, j++) {
+		colorShapes[i] = cylVerts[j];
+	}
+	torStart = i;						// next, we'll store the torus;
+	for (j = 0; j < torVerts.length; i++, j++) {
+		colorShapes[i] = torVerts[j];
+	}
+	axesStart = i;
+	for(j = 0; j < axes_vars.length; i++, j++){
+		colorShapes[i] = axes_vars[j];
 	}
 
 
@@ -282,19 +309,6 @@ function initVertexBuffer(gl) {
 	return nn;
 }
 
-// simple & quick-- 
-// I didn't use any arguments such as color choices, # of verts,slices,bars, etc.
-// YOU can improve these functions to accept useful arguments...
-//
-
-
-
-
-
-
-
-
-
 
 function makeGroundGrid() {
 	//==============================================================================
@@ -351,6 +365,236 @@ function makeGroundGrid() {
 		gndVerts[j + 5] = yColr[1];			// grn
 		gndVerts[j + 6] = yColr[2];			// blu
 	}
+}
+function makeTorus() {
+	//==============================================================================
+	// 		Create a torus centered at the origin that circles the z axis.  
+	// Terminology: imagine a torus as a flexible, cylinder-shaped bar or rod bent 
+	// into a circle around the z-axis. The bent bar's centerline forms a circle
+	// entirely in the z=0 plane, centered at the origin, with radius 'rbend'.  The 
+	// bent-bar circle begins at (rbend,0,0), increases in +y direction to circle  
+	// around the z-axis in counter-clockwise (CCW) direction, consistent with our
+	// right-handed coordinate system.
+	// 		This bent bar forms a torus because the bar itself has a circular cross-
+	// section with radius 'rbar' and angle 'phi'. We measure phi in CCW direction 
+	// around the bar's centerline, circling right-handed along the direction 
+	// forward from the bar's start at theta=0 towards its end at theta=2PI.
+	// 		THUS theta=0, phi=0 selects the torus surface point (rbend+rbar,0,0);
+	// a slight increase in phi moves that point in -z direction and a slight
+	// increase in theta moves that point in the +y direction.  
+	// To construct the torus, begin with the circle at the start of the bar:
+	//					xc = rbend + rbar*cos(phi); 
+	//					yc = 0; 
+	//					zc = -rbar*sin(phi);			(note negative sin(); right-handed phi)
+	// and then rotate this circle around the z-axis by angle theta:
+	//					x = xc*cos(theta) - yc*sin(theta) 	
+	//					y = xc*sin(theta) + yc*cos(theta)
+	//					z = zc
+	// Simplify: yc==0, so
+	//					x = (rbend + rbar*cos(phi))*cos(theta)
+	//					y = (rbend + rbar*cos(phi))*sin(theta) 
+	//					z = -rbar*sin(phi)
+	// To construct a torus from a single triangle-strip, make a 'stepped spiral' 
+	// along the length of the bent bar; successive rings of constant-theta, using 
+	// the same design used for cylinder walls in 'makeCyl()' and for 'slices' in 
+	// makeSphere().  Unlike the cylinder and sphere, we have no 'special case' 
+	// for the first and last of these bar-encircling rings.
+	//
+	var rbend = 1.0;										// Radius of circle formed by torus' bent bar
+	var rbar = 0.5;											// radius of the bar we bent to form torus
+	var barSlices = 23;									// # of bar-segments in the torus: >=3 req'd;
+	// more segments for more-circular torus
+	var barSides = 13;										// # of sides of the bar (and thus the 
+	// number of vertices in its cross-section)
+	// >=3 req'd;
+	// more sides for more-circular cross-section
+	// for nice-looking torus with approx square facets, 
+	//			--choose odd or prime#  for barSides, and
+	//			--choose pdd or prime# for barSlices of approx. barSides *(rbend/rbar)
+	// EXAMPLE: rbend = 1, rbar = 0.5, barSlices =23, barSides = 11.
+
+	// Create a (global) array to hold this torus's vertices:
+	torVerts = new Float32Array(floatsPerVertex * (2 * barSides * barSlices + 2));
+	//	Each slice requires 2*barSides vertices, but 1st slice will skip its first 
+	// triangle and last slice will skip its last triangle. To 'close' the torus,
+	// repeat the first 2 vertices at the end of the triangle-strip.  Assume 7
+
+	var phi = 0, theta = 0;										// begin torus at angles 0,0
+	var thetaStep = 2 * Math.PI / barSlices;	// theta angle between each bar segment
+	var phiHalfStep = Math.PI / barSides;		// half-phi angle between each side of bar
+	// (WHY HALF? 2 vertices per step in phi)
+	// s counts slices of the bar; v counts vertices within one slice; j counts
+	// array elements (Float32) (vertices*#attribs/vertex) put in torVerts array.
+	for (s = 0, j = 0; s < barSlices; s++) {		// for each 'slice' or 'ring' of the torus:
+		for (v = 0; v < 2 * barSides; v++, j += 7) {		// for each vertex in this slice:
+			if (v % 2 == 0) {	// even #'d vertices at bottom of slice,
+				torVerts[j] = (rbend + rbar * Math.cos((v) * phiHalfStep)) *
+					Math.cos((s) * thetaStep);
+				//	x = (rbend + rbar*cos(phi)) * cos(theta)
+				torVerts[j + 1] = (rbend + rbar * Math.cos((v) * phiHalfStep)) *
+					Math.sin((s) * thetaStep);
+				//  y = (rbend + rbar*cos(phi)) * sin(theta) 
+				torVerts[j + 2] = -rbar * Math.sin((v) * phiHalfStep);
+				//  z = -rbar  *   sin(phi)
+				torVerts[j + 3] = 1.0;		// w
+			}
+			else {				// odd #'d vertices at top of slice (s+1);
+				// at same phi used at bottom of slice (v-1)
+				torVerts[j] = (rbend + rbar * Math.cos((v - 1) * phiHalfStep)) *
+					Math.cos((s + 1) * thetaStep);
+				//	x = (rbend + rbar*cos(phi)) * cos(theta)
+				torVerts[j + 1] = (rbend + rbar * Math.cos((v - 1) * phiHalfStep)) *
+					Math.sin((s + 1) * thetaStep);
+				//  y = (rbend + rbar*cos(phi)) * sin(theta) 
+				torVerts[j + 2] = -rbar * Math.sin((v - 1) * phiHalfStep);
+				//  z = -rbar  *   sin(phi)
+				torVerts[j + 3] = 1.0;		// w
+			}
+			torVerts[j + 4] = Math.random();		// random color 0.0 <= R < 1.0
+			torVerts[j + 5] = Math.random();		// random color 0.0 <= G < 1.0
+			torVerts[j + 6] = Math.random();		// random color 0.0 <= B < 1.0
+		}
+	}
+	// Repeat the 1st 2 vertices of the triangle strip to complete the torus:
+	torVerts[j] = rbend + rbar;	// copy vertex zero;
+	//	x = (rbend + rbar*cos(phi==0)) * cos(theta==0)
+	torVerts[j + 1] = 0.0;
+	//  y = (rbend + rbar*cos(phi==0)) * sin(theta==0) 
+	torVerts[j + 2] = 0.0;
+	//  z = -rbar  *   sin(phi==0)
+	torVerts[j + 3] = 1.0;		// w
+	torVerts[j + 4] = Math.random();		// random color 0.0 <= R < 1.0
+	torVerts[j + 5] = Math.random();		// random color 0.0 <= G < 1.0
+	torVerts[j + 6] = Math.random();		// random color 0.0 <= B < 1.0
+	j += 7; // go to next vertex:
+	torVerts[j] = (rbend + rbar) * Math.cos(thetaStep);
+	//	x = (rbend + rbar*cos(phi==0)) * cos(theta==thetaStep)
+	torVerts[j + 1] = (rbend + rbar) * Math.sin(thetaStep);
+	//  y = (rbend + rbar*cos(phi==0)) * sin(theta==thetaStep) 
+	torVerts[j + 2] = 0.0;
+	//  z = -rbar  *   sin(phi==0)
+	torVerts[j + 3] = 1.0;		// w
+	torVerts[j + 4] = Math.random();		// random color 0.0 <= R < 1.0
+	torVerts[j + 5] = Math.random();		// random color 0.0 <= G < 1.0
+	torVerts[j + 6] = Math.random();		// random color 0.0 <= B < 1.0
+}
+function makeCylinder() {
+	//==============================================================================
+	// Make a cylinder shape from one TRIANGLE_STRIP drawing primitive, using the
+	// 'stepped spiral' design described in notes.
+	// Cylinder center at origin, encircles z axis, radius 1, top/bottom at z= +/-1.
+	//
+	var ctrColr = new Float32Array([0.2, 0.2, 0.2]);	// dark gray
+	var topColr = new Float32Array([0.4, 0.7, 0.4]);	// light green
+	var botColr = new Float32Array([0.5, 0.5, 1.0]);	// light blue
+	var capVerts = 16;	// # of vertices around the topmost 'cap' of the shape
+	var botRadius = 1.6;		// radius of bottom of cylinder (top always 1.0)
+
+	// Create a (global) array to hold this cylinder's vertices;
+	cylVerts = new Float32Array(((capVerts * 6) - 2) * floatsPerVertex);
+	// # of vertices * # of elements needed to store them. 
+
+	// Create circle-shaped top cap of cylinder at z=+1.0, radius 1.0
+	// v counts vertices: j counts array elements (vertices * elements per vertex)
+	for (v = 1, j = 0; v < 2 * capVerts; v++, j += floatsPerVertex) {
+		// skip the first vertex--not needed.
+		if (v % 2 == 0) {				// put even# vertices at center of cylinder's top cap:
+			cylVerts[j] = 0.0; 			// x,y,z,w == 0,0,1,1
+			cylVerts[j + 1] = 0.0;
+			cylVerts[j + 2] = 1.0;
+			cylVerts[j + 3] = 1.0;			// r,g,b = topColr[]
+			cylVerts[j + 4] = ctrColr[0];
+			cylVerts[j + 5] = ctrColr[1];
+			cylVerts[j + 6] = ctrColr[2];
+		}
+		else { 	// put odd# vertices around the top cap's outer edge;
+			// x,y,z,w == cos(theta),sin(theta), 1.0, 1.0
+			// 					theta = 2*PI*((v-1)/2)/capVerts = PI*(v-1)/capVerts
+			cylVerts[j] = Math.cos(Math.PI * (v - 1) / capVerts);			// x
+			cylVerts[j + 1] = Math.sin(Math.PI * (v - 1) / capVerts);			// y
+			//	(Why not 2*PI? because 0 < =v < 2*capVerts, so we
+			//	 can simplify cos(2*PI * (v-1)/(2*capVerts))
+			cylVerts[j + 2] = 1.0;	// z
+			cylVerts[j + 3] = 1.0;	// w.
+			// r,g,b = topColr[]
+			cylVerts[j + 4] = topColr[0];
+			cylVerts[j + 5] = topColr[1];
+			cylVerts[j + 6] = topColr[2];
+		}
+	}
+	// Create the cylinder side walls, made of 2*capVerts vertices.
+	// v counts vertices within the wall; j continues to count array elements
+	for (v = 0; v < 2 * capVerts; v++, j += floatsPerVertex) {
+		if (v % 2 == 0)	// position all even# vertices along top cap:
+		{
+			cylVerts[j] = Math.cos(Math.PI * (v) / capVerts);		// x
+			cylVerts[j + 1] = Math.sin(Math.PI * (v) / capVerts);		// y
+			cylVerts[j + 2] = 1.0;	// z
+			cylVerts[j + 3] = 1.0;	// w.
+			// r,g,b = topColr[]
+			cylVerts[j + 4] = topColr[0];
+			cylVerts[j + 5] = topColr[1];
+			cylVerts[j + 6] = topColr[2];
+		}
+		else		// position all odd# vertices along the bottom cap:
+		{
+			cylVerts[j] = botRadius * Math.cos(Math.PI * (v - 1) / capVerts);		// x
+			cylVerts[j + 1] = botRadius * Math.sin(Math.PI * (v - 1) / capVerts);		// y
+			cylVerts[j + 2] = -1.0;	// z
+			cylVerts[j + 3] = 1.0;	// w.
+			// r,g,b = topColr[]
+			cylVerts[j + 4] = botColr[0];
+			cylVerts[j + 5] = botColr[1];
+			cylVerts[j + 6] = botColr[2];
+		}
+	}
+	// Create the cylinder bottom cap, made of 2*capVerts -1 vertices.
+	// v counts the vertices in the cap; j continues to count array elements
+	for (v = 0; v < (2 * capVerts - 1); v++, j += floatsPerVertex) {
+		if (v % 2 == 0) {	// position even #'d vertices around bot cap's outer edge
+			cylVerts[j] = botRadius * Math.cos(Math.PI * (v) / capVerts);		// x
+			cylVerts[j + 1] = botRadius * Math.sin(Math.PI * (v) / capVerts);		// y
+			cylVerts[j + 2] = -1.0;	// z
+			cylVerts[j + 3] = 1.0;	// w.
+			// r,g,b = topColr[]
+			cylVerts[j + 4] = botColr[0];
+			cylVerts[j + 5] = botColr[1];
+			cylVerts[j + 6] = botColr[2];
+		}
+		else {				// position odd#'d vertices at center of the bottom cap:
+			cylVerts[j] = 0.0; 			// x,y,z,w == 0,0,-1,1
+			cylVerts[j + 1] = 0.0;
+			cylVerts[j + 2] = -1.0;
+			cylVerts[j + 3] = 1.0;			// r,g,b = botColr[]
+			cylVerts[j + 4] = botColr[0];
+			cylVerts[j + 5] = botColr[1];
+			cylVerts[j + 6] = botColr[2];
+		}
+	}
+}
+
+function make_Axes(){
+
+ axes_vars = new Float32Array([
+
+0,0,0,1,1,0,0,
+1,0,0,1,1,0,0,
+
+0,0,0,1,0,1,0,
+0,1,0,1,0,1,0,
+
+0,0,0,1,0,0,1,
+0,0,1,1,0,0,1
+
+
+
+
+ ])
+
+
+
+
+
 }
 
 //add old shapes
@@ -1261,15 +1505,81 @@ function make_old_shapes(){
 
 }
 
+function calc_lookat(){
+
+	if (w_is_pushed){
+		x_location = x_location + 0.1
+	}
+
+	if (s_is_pushed){
+
+		x_location = x_location - 0.1
+	}
+
+
+	return [x_location, y_location, z_location, x_refrence, y_refrence, z_refrence, x_up, y_up, z_up]
+}
+
+function draw_two(gl, n, currentAngle, modelMatrix, u_ModelMatrix){
+
+	
+
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+	var aspect = gl.canvas.width / 2 /gl.canvas.height
+	var angle = 35.0
+	var lookat_val = calc_lookat();
+	view.setLookAt(
+		lookat_val[0],
+		lookat_val[1],
+		lookat_val[2],
+		lookat_val[3],
+		lookat_val[4],
+		lookat_val[5],
+		lookat_val[6],
+		lookat_val[7],
+		lookat_val[8]);
+	
+	
+	projection.setPerspective(angle, 1 ,aspect, 100.0);
+	
+	
+	gl.uniformMatrix4fv(costum_Projmatrix, false, projection.elements);
+	gl.uniformMatrix4fv(costum_Viewmatrix, false, view.elements);
+
+	gl.viewport(0, 0, gl.canvas.width / 2, gl.canvas.height);
+	drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix);    // Draw shapes
+	
+	var width = 3.0
+	var height = width / aspect
+	projection.setOrtho(-width/2,width/2, -height/2, height/2, 0.0, 100.0)
+
+	gl.uniformMatrix4fv(costum_Projmatrix, false, projection.elements);
+	gl.viewport(gl.canvas.width / 2, 0, gl.canvas.width / 2, gl.canvas.height);
+	drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix);   // Draw shapes
+
+
+}
+
 function drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
 	//==============================================================================
 	// Clear <canvas>  colors AND the depth buffer
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	
 	modelMatrix.setIdentity();    // DEFINE 'world-space' coords.
 
+	//draw world space coordinates
+	pushMatrix(modelMatrix);
 
-
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
 	
+	gl.drawArrays(gl.LINES, 								
+		axesStart / floatsPerVertex,	
+		axes_vars.length / floatsPerVertex);
+
+
+	popMatrix(modelMatrix);
+
+
 
 	pushMatrix(modelMatrix);  // SAVE world drawing coords.
 	//---------Draw Ground Plane, without spinning.
@@ -1285,14 +1595,66 @@ function drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
 		gndStart / floatsPerVertex,	// start at this vertex number, and
 		gndVerts.length / floatsPerVertex);	// draw this many vertices.
 	modelMatrix = popMatrix();  // RESTORE 'world' drawing coords.
+
+	//make figures stand up
+
+	
+	modelMatrix.rotate(90,1,0,0);
+	modelMatrix.translate(0,1,0)
+ 	//new shape
+	 pushMatrix(modelMatrix);     // SAVE world coord system;
+	 //-------Draw Spinning Cylinder:
+	 
+	 modelMatrix.translate(-3, -0.4, 0.0);  // 'set' means DISCARD old matrix,
+	 // (drawing axes centered in CVV), and then make new
+	 // drawing axes moved to the lower-left corner of CVV. 
+	 modelMatrix.scale(0.2, 0.2, 0.2);
+	 // if you DON'T scale, cyl goes outside the CVV; clipped!
+	 modelMatrix.rotate(270, 1, 0, 0);  // spin around y axis.
+	 // Drawing:
+	 // Pass our current matrix to the vertex shaders:
+	 gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	 // Draw the cylinder's vertices, and no other vertices:
+	 gl.drawArrays(gl.TRIANGLE_STRIP,				// use this drawing primitive, and
+		 cylStart / floatsPerVertex, // start at this vertex number, and
+		 cylVerts.length / floatsPerVertex);	// draw this many vertices.
+	 modelMatrix = popMatrix();  // RESTORE 'world' drawing coords.
+	 //===========================================================
+	 //  
+	 pushMatrix(modelMatrix);  // SAVE world drawing coords.
+	 //--------Draw Spinning torus
+	 modelMatrix.translate(-3, -0.1, 0);	// 'set' means DISCARD old matrix,
+ 
+	 modelMatrix.scale(0.3, 0.2, 0.3);
+	 // Make it smaller:
+	 modelMatrix.rotate(45 + g_angle02, 1, 0, 0);  // Spin on YZ axis
+	 // Drawing:		
+	 // Pass our current matrix to the vertex shaders:
+	 gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	 // Draw just the torus's vertices
+	 gl.drawArrays(gl.TRIANGLE_STRIP, 				// use this drawing primitive, and
+		 torStart / floatsPerVertex,	// start at this vertex number, and
+		 torVerts.length / floatsPerVertex);	// draw this many vertices.
+	 modelMatrix = popMatrix();  // RESTORE 'world' drawing coords.
+	 //===========================================================
+	
+
+
+
+
+
+
+
+
+
 	//===========================================================
 	//old shapes
-	modelMatrix.setTranslate(-0.25, 0, 0.0);
+	modelMatrix.setTranslate(-0.25, 0, 0.3);
 
 	// convert to left-handed coord sys
 
 
-
+	modelMatrix.rotate(90,1,0,0);
 
 
 
@@ -1353,6 +1715,17 @@ function drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
 	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
 	gl.drawArrays(gl.TRIANGLES, 108, 72);
 
+	//draw stick
+	modelMatrix.scale(0.75, 0.75, 0.75);
+
+	modelMatrix.translate(0, -0.3, 0.2);
+	modelMatrix.rotate( g_angle02 + 180, 1, 0, 0);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	gl.drawArrays(gl.TRIANGLES, 216, 36);
+
+
 	modelMatrix = popMatrix();
 	//left arm
 
@@ -1368,6 +1741,13 @@ function drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
 	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
 	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
 	gl.drawArrays(gl.TRIANGLES, 108, 72);
+	
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	
+	gl.drawArrays(gl.LINES, 								
+		axesStart / floatsPerVertex,	
+		axes_vars.length / floatsPerVertex);
 
 	modelMatrix = popMatrix();
 
@@ -1444,8 +1824,18 @@ function drawAll(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
 	modelMatrix.translate(0, -0.35, -0.1);
 
 	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
-	// Draw only the last 2 triangles: start at vertex 6, draw 6 vertices
+	// Draw only the last 2wsw triangles: start at vertex 6, draw 6 vertices
 	gl.drawArrays(gl.TRIANGLES, 432, 72);
+
+	gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+	
+	gl.drawArrays(gl.LINES, 								
+		axesStart / floatsPerVertex,	
+		axes_vars.length / floatsPerVertex);
+
+
+
+
 	modelMatrix = popMatrix();
 
 	//forder left leg
@@ -1512,6 +1902,10 @@ function animate(angle) {
 	//  if(angle < -120.0 && ANGLE_STEP < 0) ANGLE_STEP = -ANGLE_STEP;
 
 
+	//control of cowboy
+
+	
+
 
 
 	if (g_isRun == true) {
@@ -1525,6 +1919,17 @@ function animate(angle) {
 
 	if (g_angle01 > 160.0 && g_angle01Rate > 0) g_angle01Rate = -g_angle01Rate
 	if (g_angle01 < 10.0 && g_angle01Rate < 0) g_angle01Rate = -g_angle01Rate
+
+	if (ArrowUP_is_pushed){
+
+		g_angle01Rate = g_angle01Rate * 1.02;
+		g_angle02Rate = g_angle02Rate * 1.02;
+	}
+	if (ArrowDOWN_is_pushed){
+
+		g_angle01Rate = g_angle01Rate * 0.98;
+		g_angle02Rate = g_angle02Rate * 0.98;
+	}
 
 
 	if (g_isRun == true) {
@@ -1788,11 +2193,13 @@ function myKeyDown(kev) {
 				'myKeyDown():Right Arrow:keyCode=' + kev.keyCode;
 			break;
 		case "ArrowUp":
+			ArrowUP_is_pushed = true;
 			console.log('   up-arrow.');
 			document.getElementById('KeyDownResult').innerHTML =
 				'myKeyDown():   Up Arrow:keyCode=' + kev.keyCode;
 			break;
 		case "ArrowDown":
+			ArrowDOWN_is_pushed = true;
 			console.log(' down-arrow.');
 			document.getElementById('KeyDownResult').innerHTML =
 				'myKeyDown(): Down Arrow:keyCode=' + kev.keyCode;
@@ -1810,6 +2217,8 @@ function myKeyUp(kev) {
 	// Called when user releases ANY key on the keyboard; captures scancodes well
 	s_is_pushed = false;
 	w_is_pushed = false;
+	ArrowUP_is_pushed = false;
+	ArrowDOWN_is_pushed = false;
 	console.log('myKeyUp()--keyCode=' + kev.keyCode + ' released.');
 }
 
