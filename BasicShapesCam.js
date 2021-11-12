@@ -56,13 +56,12 @@ var costum_Projmatrix;
 var costum_Viewmatrix;  
 
 //look_at variables
-var x_location = 5
-var y_location = 5
-var z_location = 3
+var x_location = 0
+var y_location = 0
+var z_location = 0
 
-var x_refrence = 0
-var y_refrence = 0
-var z_refrence = 0
+var tilt = 0
+var delta = 0
 
 var x_up = 0
 var y_up = 0
@@ -92,11 +91,23 @@ var g_angle05Rate = 50;
 
 var w_is_pushed = false;
 var s_is_pushed = false;
+var a_is_pushed = false;
+var d_is_pushed = false;
 
 var w_last_pushed = true;
 
 var ArrowDOWN_is_pushed = false;
 var ArrowUP_is_pushed = false;
+
+var I_is_pushed = false;
+var J_is_pushed = false;
+var K_is_pushed = false;
+var L_is_pushed = false;
+
+
+
+
+
 // rotation speed, in degrees/second 
 
 //------------For mouse click-and-drag: -------------------------------
@@ -1507,14 +1518,110 @@ function make_old_shapes(){
 
 function calc_lookat(){
 
+	
+
+	var movment_speed = 0.05
+	var look_speed = 0.01
+	z_refrence = tilt + z_location;
+
+	x_refrence = x_location + Math.cos(delta)
+	y_refrence = y_location + Math.sin(delta)
+
+	var vec_between = [x_refrence - x_location, y_refrence - y_location, z_refrence - z_location]
+
+
+
+	var total = vec_between[0] + vec_between[1] + vec_between[2]
+	
+
+	
+
 	if (w_is_pushed){
-		x_location = x_location + 0.1
+		
+		x_location = x_location + vec_between[0]/total * movment_speed 
+		y_location = y_location + vec_between[1]/total * movment_speed 
+		z_location = z_location + vec_between[2]/total * movment_speed 
+
+ 
 	}
 
 	if (s_is_pushed){
 
-		x_location = x_location - 0.1
+		movment_speed = - movment_speed
+
+		x_location = x_location + vec_between[0]/total * movment_speed 
+		y_location = y_location + vec_between[1]/total * movment_speed 
+		z_location = z_location + vec_between[2]/total * movment_speed 
+
+		movment_speed = -movment_speed
+
 	}
+
+	if (a_is_pushed){
+		
+
+		var resVector = [-vec_between[1], vec_between[0], 0]
+		total = resVector[0] + resVector[1] + resVector[2]
+
+
+		
+		x_location = x_location + resVector[0]/total * movment_speed 
+		y_location = y_location + resVector[1]/total * movment_speed 
+		z_location = z_location + resVector[2]/total * movment_speed 
+
+ 
+	}
+	if (d_is_pushed){
+		
+		movment_speed = -movment_speed
+
+		var resVector = [-vec_between[1], vec_between[0], 0]
+		total = resVector[0] + resVector[1] + resVector[2]
+
+
+		
+		x_location = x_location + resVector[0]/total * movment_speed 
+		y_location = y_location + resVector[1]/total * movment_speed 
+		z_location = z_location + resVector[2]/total * movment_speed 
+
+		movment_speed = -movment_speed
+ 
+	}
+	
+
+	if (J_is_pushed){
+
+		delta = delta + look_speed
+	}
+
+	if (L_is_pushed){
+
+		delta = delta - look_speed
+	}
+
+	
+
+
+	if (I_is_pushed){
+
+		tilt = tilt + look_speed;
+	}
+
+	if (K_is_pushed){
+
+		tilt= tilt - look_speed;
+	}
+
+
+	z_refrence = tilt + z_location;
+
+	x_refrence = x_location + Math.cos(delta)
+	y_refrence = y_location + Math.sin(delta)
+
+
+
+
+
 
 
 	return [x_location, y_location, z_location, x_refrence, y_refrence, z_refrence, x_up, y_up, z_up]
@@ -2158,11 +2265,13 @@ function myKeyDown(kev) {
 		//------------------WASD navigation-----------------
 		case "KeyA":
 			console.log("a/A key: Strafe LEFT!\n");
+			a_is_pushed = true;
 			document.getElementById('KeyDownResult').innerHTML =
 				'myKeyDown() found a/A key. Strafe LEFT!';
 			break;
 		case "KeyD":
 			console.log("d/D key: Strafe RIGHT!\n");
+			d_is_pushed = true;
 			document.getElementById('KeyDownResult').innerHTML =
 				'myKeyDown() found d/D key. Strafe RIGHT!';
 			break;
@@ -2204,6 +2313,23 @@ function myKeyDown(kev) {
 			document.getElementById('KeyDownResult').innerHTML =
 				'myKeyDown(): Down Arrow:keyCode=' + kev.keyCode;
 			break;
+		
+		case "KeyI":
+			I_is_pushed = true;
+			break;	
+
+		case "KeyJ":
+			J_is_pushed = true;
+			break;
+
+		case "KeyK":
+			K_is_pushed = true;
+			break;
+		case "KeyL":
+			L_is_pushed = true;
+			break;
+
+		
 		default:
 			console.log("UNUSED!");
 			document.getElementById('KeyDownResult').innerHTML =
@@ -2217,8 +2343,22 @@ function myKeyUp(kev) {
 	// Called when user releases ANY key on the keyboard; captures scancodes well
 	s_is_pushed = false;
 	w_is_pushed = false;
+	a_is_pushed = false;
+	d_is_pushed = false;
+
+
+
 	ArrowUP_is_pushed = false;
 	ArrowDOWN_is_pushed = false;
+
+
+	I_is_pushed = false;
+	J_is_pushed = false;
+	K_is_pushed = false;
+	L_is_pushed = false;
+
+
+
 	console.log('myKeyUp()--keyCode=' + kev.keyCode + ' released.');
 }
 
