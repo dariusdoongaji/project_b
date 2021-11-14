@@ -1590,7 +1590,7 @@ function calc_lookat(){
 		
 		
 		var resVector = [-vec_between[1], vec_between[0], 0]
-		total = resVector[0] + resVector[1] + resVector[2]
+		total = Math.sqrt ( resVector[0] * resVector[0] + resVector[1] * resVector[1]+ resVector[2] * resVector[2])
 		
 		
 		
@@ -1605,7 +1605,7 @@ function calc_lookat(){
 		movment_speed = -movment_speed
 		
 		var resVector = [-vec_between[1], vec_between[0], 0]
-		total = resVector[0] + resVector[1] + resVector[2]
+		total = Math.sqrt ( resVector[0] * resVector[0] + resVector[1] * resVector[1]+ resVector[2] * resVector[2])
 		
 		
 		
